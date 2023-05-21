@@ -13,13 +13,8 @@ def detect_shape(c):
 
     # Si el contorno tiene 4 vértices, entonces es un cuadrado o un rectángulo
     elif len(approx) == 4:
-        # Calcular el bounding box del contorno y usar el bounding box para calcular la relación de aspecto
-        (x, y, w, h) = cv2.boundingRect(approx)
-        ar = w / float(h)
-
-        # Un cuadrado tendrá una relación de aspecto aproximadamente igual a uno, de lo contrario, el contorno es un rectángulo
-        shape = "Square" if ar >= 0.95 and ar <= 1.05 else "Rectangle"
-
+        shape = "Square"
+        
     # Si el contorno es un círculo
     else:
         shape = "Circle"
