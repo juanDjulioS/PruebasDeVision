@@ -8,9 +8,6 @@ def color_detector(frame):
     green_lower = np.array([36, 25, 25])
     green_upper = np.array([70, 255,255])
 
-    # Reducir el tamaño de la imagen
-    frame = cv2.resize(frame, (320, 240))
-
     # Convertir la imagen a HSV
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
