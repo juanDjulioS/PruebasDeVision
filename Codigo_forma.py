@@ -43,12 +43,12 @@ while True:
     contours, _ = cv2.findContours(edged.copy(), cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
     
     # Definir el valor umbral para el área del contorno
-    area_threshold = 150
+    shape_area_threshold = 150
     
     # Recorrer cada contorno
     for c in contours:
          # Verificar si el contorno es cerrado
-        if cv2.contourArea(c) > area_threshold:
+        if cv2.contourArea(c) > shape_area_threshold:
             # Calcular el centro del contorno y dibujar un círculo en el centro
             M = cv2.moments(c)
             if M["m00"] != 0:
