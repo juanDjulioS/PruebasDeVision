@@ -1,35 +1,35 @@
 import cv2
 import numpy as np
 
+def detect_shape(c):
+    # Inicializar el nombre de la forma y el perímetro aproximado
+    shape = "unidentified"
+    peri = cv2.arcLength(c, True)
+    approx = cv2.approxPolyDP(c, 0.04 * peri, True)
+
+    # Si el contorno tiene 3 vértices, entonces es un triángulo
+    if len(approx) == 3:
+        shape = "Triangle"
+
+    # Si el contorno tiene 4 vértices, entonces es un cuadrado o un rectángulo
+    elif len(approx) == 4:
+        # Calcular el bounding box del contorno y usar el bounding box para calcular la relación de aspecto
+        (x, y, w, h) = cv2.boundingRect(approx)
+        ar = w / float(h)
+
+        # Un cuadrado tendrá una relación de aspecto aproximadamente igual a uno, de lo contrario, el contorno es un rectángulo
+        shape = "Square" if ar >= 0.95 and ar <= 1.05 else "Rectangle"
+
+    # Si el contorno es un círculo
+    else:
+        shape = "Circle"
+
+    # Devolver el nombre de la forma
+    return shape
+
 def shape_detector():
     # Cargar la imagen desde la cámara web
     cap = cv2.VideoCapture(0)
-
-    def detect_shape(c):
-        # Inicializar el nombre de la forma y el perímetro aproximado
-        shape = "unidentified"
-        peri = cv2.arcLength(c, True)
-        approx = cv2.approxPolyDP(c, 0.04 * peri, True)
-
-        # Si el contorno tiene 3 vértices, entonces es un triángulo
-        if len(approx) == 3:
-            shape = "Triangle"
-
-        # Si el contorno tiene 4 vértices, entonces es un cuadrado o un rectángulo
-        elif len(approx) == 4:
-            # Calcular el bounding box del contorno y usar el bounding box para calcular la relación de aspecto
-            (x, y, w, h) = cv2.boundingRect(approx)
-            ar = w / float(h)
-
-            # Un cuadrado tendrá una relación de aspecto aproximadamente igual a uno, de lo contrario, el contorno es un rectángulo
-            shape = "Square" if ar >= 0.95 and ar <= 1.05 else "Rectangle"
-
-        # Si el contorno es un círculo
-        else:
-            shape = "Circle"
-
-        # Devolver el nombre de la forma
-        return shape
 
     while True:
         # Capturar un nuevo frame
@@ -57,7 +57,7 @@ def shape_detector():
                     cY = int(M["m01"] / M["m00"])
                     shape = detect_shape(c)
                     cv2.drawContours(frame, [c], -1, (0, 255, 0), 2)
-                    cv2.putText(frame, shape, (cX - 20 , cY - 20),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+                    cv2.putText(frame, shape, (cX - 20 , cY - 20),cv2.FONT_HERSHEY_SIMPLEX, 0.5,(255, 255, 255), 2)
 
         # Mostrar la imagen final
         cv2.imshow('frame',frame)
