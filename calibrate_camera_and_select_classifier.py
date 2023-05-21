@@ -25,3 +25,15 @@ def calibrate_camera(frame, circle_diameter=4.0):
                     (x, y, w, h) = cv2.boundingRect(c)
                     pixels_per_cm = w / circle_diameter
                     return pixels_per_cm
+
+def subrutine_selector(frame,option,circle_diameter=4.0):
+    if option == "color":
+        return color_detector(frame)
+    elif option == "shape":
+        return shape_detector(frame)
+    elif option == "size":
+        pixels_per_cm = calibrate_camera(frame, circle_diameter)
+        if pixels_per_cm is None:
+             return None
+        else:
+            return size_detector(frame,pixels_per_cm)
