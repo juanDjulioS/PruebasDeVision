@@ -1,7 +1,6 @@
 def shape_detector(frame):
-
-    # Reducir el tamaño de la imagen
-    frame = cv2.resize(frame, (320, 240))
+    
+    servo_code = None
     
     # Convertir la imagen a escala de grises y aplicar un desenfoque para suavizarla
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -23,9 +22,9 @@ def shape_detector(frame):
             if M["m00"] != 0:
                 cX = int(M["m10"] / M["m00"])
                 cY = int(M["m01"] / M["m00"])
-                shape = detect_shape(c)
+                servo_code, shape = detect_shape(c)
                 cv2.drawContours(frame, [c], -1, (0, 255, 0), 2)
                 cv2.putText(frame, shape, (cX - 20 , cY - 20),cv2.FONT_HERSHEY_SIMPLEX, 0.5,(255, 255, 255), 2)
 
     # Devuelve la imagen final
-    return frame
+    return servo_code, frame
