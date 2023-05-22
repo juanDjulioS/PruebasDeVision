@@ -1,4 +1,6 @@
-def size_detector(frame, pixels_per_cm):
+def size_detector(frame, pixels_per_cm, large_size_threshold, medium_size_threshold):
+    
+    servo_code = None
     
     # Convertir la imagen a escala de grises y aplicar un desenfoque para suavizarla
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -20,23 +22,47 @@ def size_detector(frame, pixels_per_cm):
             if M["m00"] != 0:
                 cX = int(M["m10"] / M["m00"])
                 cY = int(M["m01"] / M["m00"])
-                shape = detect_shape(c)
+                _, shape = detect_shape(c)
                 cv2.drawContours(frame, [c], -1, (0, 255, 0), 2)
                 (x, y, w, h) = cv2.boundingRect(c)
+                
                 if shape =="Circle":
-                    radius = w/2
                     diameter = w / pixels_per_cm
-                    size_text = "Diameter: {:.1f}cm".format(diameter)
+                    if diameter >= large_size_threshold:
+                        size_text = "Large. D = {:.1f} cm".format(diameter)
+                        servo_code = '0'
+                    elif diameter >= medium_size_threshold:
+                        size_text = "Medium. D = {:.1f} cm".format(diameter)
+                        servo_code = '1'
+                    else:
+                        size_text = "Small. D = {:.1f} cm".format(diameter)
+                        servo_code = '2'
                     cv2.putText(frame,size_text,(cX - 20 , cY - 20),cv2.FONT_HERSHEY_SIMPLEX, 0.5,(255, 255, 255), 2)
                 elif shape == "Triangle":
                     side = w / pixels_per_cm
-                    size_text = "Side: {:.1f}cm".format(side)
+                    if side >= large_size_threshold:
+                        size_text = "Large. l = {:.1f} cm".format(side)
+                        servo_code = '0'
+                    elif side >= medium_size_threshold:
+                        size_text = "Medium. l = {:.1f} cm".format(side)
+                        servo_code = '1'
+                    else:
+                        size_text = "Small. l = {:.1f} cm".format(side)
+                        servo_code = '2'
                     cv2.putText(frame, size_text, (cX - 20 , cY - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
                 else:
                     width = w / pixels_per_cm
                     height = h / pixels_per_cm
-                    size_text = "{:.1f}cm x {:.1f}cm".format(width, height)
+                    if width >= large_size_threshold and height >= large_size_threshold:
+                        size_text = "Large: {:.1f} cm x {:.1f}cm".format(width, height)
+                        servo_code = '0'
+                    elif width >= medium_size_threshold and height >= medium_size_threshold:
+                        servo_code = '1'
+                        size_text = "Medium: {:.1f}cm x {:.1f}cm".format(width, height)
+                    else:
+                        size_text = "Small: {:.1f} cm x {:.1f} cm".format(width, height)
+                        servo_code = '2'
                     cv2.putText(frame,size_text,(cX - 20 , cY - 20),cv2.FONT_HERSHEY_SIMPLEX, 0.5,(255, 255, 255), 2)
 
     # Devolver la imagen final
-    return frame
+    return servo_code, frame
