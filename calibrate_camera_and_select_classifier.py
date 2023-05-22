@@ -20,13 +20,13 @@ def calibrate_camera(frame, circle_diameter=4.0):
             if M["m00"] != 0:
                 cX = int(M["m10"] / M["m00"])
                 cY = int(M["m01"] / M["m00"])
-                shape = detect_shape(c)
+                _, shape = detect_shape(c)
                 if shape == "Circle":
                     (x, y, w, h) = cv2.boundingRect(c)
                     pixels_per_cm = w / circle_diameter
                     return pixels_per_cm
 
-def subrutine_selector(frame,option,circle_diameter=4.0):
+def classifier_selector(frame,option,circle_diameter, large_size_threshold,medium_size_threshold):
     if option == "color":
         return color_detector(frame)
     elif option == "shape":
@@ -34,6 +34,6 @@ def subrutine_selector(frame,option,circle_diameter=4.0):
     elif option == "size":
         pixels_per_cm = calibrate_camera(frame, circle_diameter)
         if pixels_per_cm is None:
-             return None
+             return None, None
         else:
-            return size_detector(frame,pixels_per_cm)
+            return size_detector(frame,pixels_per_cm,large_size_threshold,medium_size_threshold)
