@@ -81,6 +81,7 @@ def update_graph(time_values, rpm_values, max_values=10):
  
 # Crear una función para actualizar el círculo con el nuevo estado del sensor
 def update_circle(obstacle_sensor_state_value):
+    #print(obstacle_sensor_state_value)
     if window.was_closed():
         return
     if obstacle_sensor_state_value == 1:   # Si estado sensor obstáculo es 1 (Requerimiento adicional)
@@ -94,7 +95,6 @@ data_queue = Queue()
 def read_serial_data(port, baudrate):
     """
     Función que lee datos desde un puerto serial y actualiza un gráfico y un círculo con los datos recibidos.
-
     :param port: El nombre del puerto serial.
     :type port: str.
     
@@ -104,7 +104,6 @@ def read_serial_data(port, baudrate):
     :return: None.
     
     """
-
     # Verifica si se ha señalado el evento de detenerse
     while not stop_event.is_set():
         try:
@@ -121,7 +120,7 @@ def read_serial_data(port, baudrate):
 
     # Lee datos del puerto serial
     while not stop_event.is_set():
-        line = ser.readline().decode('utf-8').strip()   # Leer una línea desde el puerto serial (Requerimiento adicional)
+        line = ser.readline().decode('utf-8',errors='ignore').strip()   # Leer una línea desde el puerto serial (Requerimiento adicional)
         data_list = line.split('_')   # Dividir los datos recibidos por '_' (Requerimiento adicional)
         if len(data_list) == 2:
             try:
@@ -133,6 +132,7 @@ def read_serial_data(port, baudrate):
 
                 # Enviar los datos recibidos a la cola
                 data_queue.put((rpm_value, obstacle_sensor_state_value))
+                #print(f"Queue size after put: {data_queue.qsize()}")
 
             except ValueError:
                 pass
@@ -213,8 +213,8 @@ while True:
         # Obtener los datos desde la cola
         rpm_value, obstacle_sensor_state_value = data_queue.get()
         rpm_values.append(rpm_value)   # Agregar valor RPM a lista RPM values (Requerimiento adicional)
-        
-        update_graph(time_values,rpm_values,20)
+
+        update_graph(time_values,rpm_values,10)
         update_circle(obstacle_sensor_state_value)
         
 window.close() # Cerrar la ventana al salir del bucle (Requerimiento 7)
