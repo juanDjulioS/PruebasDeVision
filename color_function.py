@@ -1,5 +1,6 @@
 def color_detector(frame):
 
+    servo_code = None
     # Definir los rangos de colores en HSV
     red_lower = np.array([0, 120, 70])
     red_upper = np.array([10, 255, 255])
@@ -31,12 +32,15 @@ def color_detector(frame):
     if red_count > yellow_count and red_count > green_count:
         color = "red"
         color_code = (0, 0, 255)
+        servo_code = '0'
     elif yellow_count > red_count and yellow_count > green_count:
         color = "yellow"
         color_code = (0, 255, 255)
+        servo_code = '1'
     else:
         color = "green"
         color_code = (0, 255, 0)
+        servo_code = '2'
 
     # Crear una máscara para todos los colores
     mask = cv2.bitwise_or(mask_red, mask_yellow)
@@ -61,4 +65,4 @@ def color_detector(frame):
     cv2.putText(frame,color,(frame.shape[1]-100,50),cv2.FONT_HERSHEY_SIMPLEX,1,color_code,2,cv2.LINE_AA)
 
     # Devolver la imagen final
-    return frame
+    return servo_code, frame
