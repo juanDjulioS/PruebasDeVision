@@ -5,10 +5,13 @@ from threading import Thread, Event
 from queue import Queue
 from vision import *
 
-pixels_per_cm = None
-processed_frame = None
+pixels_per_cm=None
+processed_frame=None
+servo_code='2'
+ser=None
+camera_web = 1
 
-cap = cv2.VideoCapture(1)
+cap = cv2.VideoCapture(camera_web)
 stop_event = Event()
 layout = [[sg.Canvas(key="graph", size=(400, 200)), sg.Image(filename="", key="webcam", size=(300, 300), pad=((50, 50), (50, 50)))],
           [sg.Text("pwm:"), sg.Slider(range=(0, 255), key="pwm_slider", enable_events=True, orientation="h")],
@@ -49,11 +52,12 @@ def update_circle(obstacle_sensor_state_value):
     if window.was_closed():
         return
     if obstacle_sensor_state_value == 1:
-        circle.itemconfig(1, fill='green')
+        circle.itemconfig(1, fill='yellow')
     else:
-        circle.itemconfig(1, fill='red')
+        circle.itemconfig(1, fill='gray')
 data_queue = Queue()
 def read_serial_data(port, baudrate):
+    global ser
     while not stop_event.is_set():
         try:
             ser = serial.Serial(port, baudrate)
@@ -91,8 +95,27 @@ interval=0
 calibrated=False
 while True:
  event, values=window.read(timeout=10)
+ if ser is not None:
+    if event == "pwm_slider" or event == "Update":
+        pwm_value = int(values["pwm_slider"])
+        if not any([values["color_checkbox"], values["shape_checkbox"], values["size_checkbox"]]):
+            servo_code = '2'
+        ser.write(f"{pwm_value}_{servo_code}\n".encode())
+    elif any([values["color_checkbox"], values["shape_checkbox"], values["size_checkbox"]]):
+        ser.write(f"{pwm_value}_{servo_code}\n".encode())
  ret, frame = cap.read()
+ if frame is not None:
+    show_webcam(frame)
+ else:
+    # Manejar el caso en que la cámara no esté disponible
+    cap.release()
+    cap = cv2.VideoCapture(camera_web)
+    pass
  if event=="Stop" or event==sg.WIN_CLOSED:
+     window["pwm_slider"].update(value=0)
+     window["pwm_text"].update(value=0)
+     if ser is not None:
+        ser.write(f"0_2\n".encode())
      stop_event.set()
      break
  elif event=="Update":
@@ -150,5 +173,7 @@ while True:
         show_webcam(processed_frame)
     else:
         show_webcam(frame)
+ else:
+     servo_code='2'
 window.close()
 cap.release()
