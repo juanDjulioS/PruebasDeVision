@@ -8,10 +8,17 @@ from vision import *
 pixels_per_cm=None
 processed_frame=None
 servo_code='2'
+pwm_value=0
 ser=None
-camera_web = 1
+camera_web = 0
+num_samples = 30
+samples = []
+
+
+#camera_web = 'http://172.17.18.107:4747/video'
 
 cap = cv2.VideoCapture(camera_web)
+sg.theme("DarkBlue") # Establecer el tema de la interfaz
 stop_event = Event()
 layout = [[sg.Canvas(key="graph", size=(400, 200)), sg.Image(filename="", key="webcam", size=(300, 300), pad=((50, 50), (50, 50)))],
           [sg.Text("pwm:"), sg.Slider(range=(0, 255), key="pwm_slider", enable_events=True, orientation="h")],
@@ -37,15 +44,15 @@ canvas = FigureCanvasTkAgg(fig, master=window["graph"].TKCanvas)
 canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 circle = window["circle"].TKCanvas
 circle.create_oval(5, 5, 35, 35, fill='gray')
-def update_graph(time_values, rpm_values):
+def update_graph(time_values, rpm_values,max_samples=100):
     #print(f"Updating graph with {len(rpm_values)} RPM values")
-    if len(time_values) != len(rpm_values) or len(time_values) < 10:
+    if len(time_values) != len(rpm_values) or len(time_values) < max_samples:
         return
     ax.clear()
     ax.set_ylim(0, 400)
     ax.set_xlabel('Tiempo (s)')
     ax.set_ylabel('Velocidad (rpm)')
-    ax.plot(time_values[-10:], rpm_values[-10:])
+    ax.plot(time_values[-max_samples:], rpm_values[-max_samples:])
     fig.canvas.draw()
     fig.tight_layout()
 def update_circle(obstacle_sensor_state_value):
@@ -150,9 +157,11 @@ while True:
  if event == "color_checkbox" and values["color_checkbox"]:
     window["shape_checkbox"].update(value=False)
     window["size_checkbox"].update(value=False)
+
  elif event == "shape_checkbox" and values["shape_checkbox"]:
     window["color_checkbox"].update(value=False)
     window["size_checkbox"].update(value=False)
+    
  elif event == "size_checkbox" and values["size_checkbox"]:
     if not calibrated:
         sg.popup("Debes calibrar la cámara antes de poder usar la función de detección de tamaño. Coloca un círculo debajo de la cámara con un diámetro conocido y presiona el botón 'Calibrate Camera'.")
@@ -161,14 +170,26 @@ while True:
         window["color_checkbox"].update(value=False)
         window["shape_checkbox"].update(value=False)
 
- if values["color_checkbox"]:
-    servo_code, processed_frame = classifier_selector(frame, option="color")
+ if values["color_checkbox"] and obstacle_sensor_state_value == 1:
+    samples.append(classifier_selector(frame, option="color")[0])
+    if len(samples) >= num_samples:
+        servo_code = max(set(samples), key=samples.count)
+        samples = []
+    _, processed_frame = classifier_selector(frame, option="color")
     show_webcam(processed_frame)
- elif values["shape_checkbox"]:
-    servo_code, processed_frame = classifier_selector(frame, option="shape")
+ elif values["shape_checkbox"] and obstacle_sensor_state_value == 1:
+    samples.append(classifier_selector(frame, option="shape")[0])
+    if len(samples) >= num_samples:
+        servo_code = max(set(samples), key=samples.count)
+        samples = []
+    _, processed_frame = classifier_selector(frame, option="shape")
     show_webcam(processed_frame)
- elif values["size_checkbox"]:
-    servo_code, processed_frame = classifier_selector(frame, option="size")
+ elif values["size_checkbox"] and obstacle_sensor_state_value == 1:
+    samples.append(classifier_selector(frame, option="size")[0])
+    if len(samples) >= num_samples:
+        servo_code = max(set(samples), key=samples.count)
+        samples = []
+    _, processed_frame = classifier_selector(frame, option="size")
     if processed_frame is not None:
         show_webcam(processed_frame)
     else:
