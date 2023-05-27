@@ -88,7 +88,7 @@ def read_serial_data(port, baudrate):
             except ValueError:
                 pass
 
-thread = Thread(target=read_serial_data, args=("COM6", 115200))
+thread = Thread(target=read_serial_data, args=(get_arduino_port(), BAUDRATE))
 thread.start()
 current_time = int(round(time.time()*1000))
 calibrated = False
