@@ -6,26 +6,20 @@ import time
 import serial
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from threading import Thread, Event
-from vision import *
+from cvband import *
 from collections import deque
-from IPython.display import clear_output
 from statistics import mode
 
-max_samples = 100  # número máximo de muestras a almacenar
 pixels_per_cm = None
 processed_frame = None
 pwm_value = 0
 ser = None
-camera_web = 0
-large_size_threshold = 4.0
-medium_size_threshold = 3.0
-circle_diameter = 4.0
 servo_code='2'
+cap = cv2.VideoCapture(CAMERA_WEB)
 
-cap = cv2.VideoCapture(camera_web)
-sg.theme("DarkBlue")  # Establecer el tema de la interfaz
+sg.theme("DarkBlue")
 stop_event = Event()
-data_deque = deque(maxlen=max_samples)
+data_deque = deque(maxlen=MAX_SAMPLES)
 
 layout = [[sg.Canvas(key="graph", size=(400, 200)), sg.Image(filename="", key="webcam", size=(300, 300), pad=((50, 50), (50, 50)))],
           [sg.Text("pwm:"), sg.Slider(range=(0, 255), key="pwm_slider",
@@ -56,9 +50,6 @@ canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 LED = window["led"].TKCanvas
 LED.create_oval(5, 5, 35, 35, fill='gray')
 
-def moving_average(values, window_size):
-    return np.convolve(values, np.ones(window_size)/window_size, mode='valid')
-
 def update_graph(time_values, rpm_values):
     window_size = 5
     if len(rpm_values) >= window_size:
@@ -67,13 +58,6 @@ def update_graph(time_values, rpm_values):
         canvas.draw()
         ax.relim()
         ax.autoscale_view()
-
-
-def update_led(obstacle_sensor_state_value):
-    if obstacle_sensor_state_value == 1:
-        LED.itemconfig(1, fill='yellow')
-    else:
-        LED.itemconfig(1, fill='gray')
 
 def show_webcam(frame):
     # Redimensionar la imagen al tamaño del widget Image (300x300)
@@ -106,14 +90,10 @@ def read_serial_data(port, baudrate):
 
 thread = Thread(target=read_serial_data, args=("COM6", 115200))
 thread.start()
-
 current_time = int(round(time.time()*1000))
-interval = 10
 calibrated = False
-
 obstacle_detected = False
 start_time = None
-detection_duration = 5  # Duración en segundos
 servo_codes = []
 
 while True:
@@ -146,8 +126,7 @@ while True:
             window["size_checkbox"].update(value=False)
         else:
             window["color_checkbox"].update(value=False)
-            window["shape_checkbox"].update(value=False)
-             
+            window["shape_checkbox"].update(value=False)        
     # Eventos para modificar pwm_value       
     elif event == "Update":
         try:
@@ -167,7 +146,7 @@ while True:
         servo_code, processed_frame = color_detector(frame)
         servo_codes.append(servo_code)
         show_webcam(processed_frame)
-        if time.time() - start_time >= detection_duration:
+        if time.time() - start_time >= DETECTION_TIME:
             most_common_servo_code = mode(servo_codes)
             servo_code = most_common_servo_code
             ser.write(f"{pwm_value}_{servo_code}\n".encode())
@@ -175,11 +154,12 @@ while True:
             obstacle_detected = False
             start_time = None
             servo_codes.clear()
+    
     elif values["shape_checkbox"] and obstacle_detected:
         servo_code, processed_frame = shape_detector(frame)
         servo_codes.append(servo_code)
         show_webcam(processed_frame)
-        if time.time() - start_time >= detection_duration:
+        if time.time() - start_time >= DETECTION_TIME:
             most_common_servo_code = mode(servo_codes)
             servo_code = most_common_servo_code  # Actualizar el valor de servo_code
             ser.write(f"{pwm_value}_{most_common_servo_code}\n".encode())
@@ -187,11 +167,12 @@ while True:
             obstacle_detected = False
             start_time = None
             servo_codes.clear()
+    
     elif values["size_checkbox"] and obstacle_detected:
-        servo_code, processed_frame = size_detector(frame, pixels_per_cm, large_size_threshold, medium_size_threshold)
+        servo_code, processed_frame = size_detector(frame, pixels_per_cm, LARGE_SIZE_THRESHOLD, MEDIUM_SIZE_THRESHOLD)
         servo_codes.append(servo_code)
         show_webcam(processed_frame)
-        if time.time() - start_time >= detection_duration:
+        if time.time() - start_time >= DETECTION_TIME:
             most_common_servo_code = mode(servo_codes)
             servo_code = most_common_servo_code  # Actualizar el valor de servo_code
             ser.write(f"{pwm_value}_{most_common_servo_code}\n".encode())
@@ -199,9 +180,10 @@ while True:
             obstacle_detected = False
             start_time = None
             servo_codes.clear()
+    
     else:
         now = int(round(time.time()*1000))
-        if now - current_time >= interval:
+        if now - current_time >= INTERVAL:
             show_webcam(frame)
             current_time = now
      
@@ -213,9 +195,10 @@ while True:
             obstacle_detected = True
             start_time = time.time()
         update_graph(time_values, rpm_values)
-        update_led(obstacle_sensor_state_value)
+        update_led(LED,obstacle_sensor_state_value)
         
     window.refresh()
+
 window.close()
 
 cap.release()
