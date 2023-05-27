@@ -1,8 +1,18 @@
 import cv2
 import numpy as np
-      
-           
+
+MAX_SAMPLES = 100  # número máximo de muestras a almacenar
+CAMERA_WEB = 0
+LARGE_SIZE_THRESHOLD = 4.0
+MEDIUM_SIZE_THRESHOLD = 3.0
+CIRCLE_DIAMETER = 4.0
+INTERVAL = 10
+DETECTION_TIME = 5  # Duración en segundos
+BAUDRATE = 9600
+PORT = 'COM6'
+
 # FUNCIONES DE CLASIFICACIÓN DE VISION
+
 def color_detector(frame):
 
     servo_code = None
@@ -42,11 +52,12 @@ def color_detector(frame):
         color = "yellow"
         color_code = (0, 255, 255)
         servo_code = '1'
-    else:
+    elif green_count > red_count and green_count > yellow_count:
         color = "green"
         color_code = (0, 255, 0)
         servo_code = '2'
-
+    else:
+        return None, frame
     # Crear una máscara para todos los colores
     mask = cv2.bitwise_or(mask_red, mask_yellow)
     mask = cv2.bitwise_or(mask, mask_green)
@@ -69,14 +80,14 @@ def color_detector(frame):
     # Mostrar el nombre del color en la esquina superior derecha
     cv2.putText(frame,color,(frame.shape[1]-100,50),cv2.FONT_HERSHEY_SIMPLEX,1,color_code,2,cv2.LINE_AA)
 
-    # Devolver la imagen final
+    # Devolver el codigo del servo y la imagen final
     return servo_code, frame
 
 # Función para detectar la forma, se usa tanto en forma como tamaño
 def detect_shape(c):
-    
+
     servo_code = None
-    
+
     # Inicializar el nombre de la forma y el perímetro aproximado
     shape = None
     peri = cv2.arcLength(c, True)
@@ -89,8 +100,18 @@ def detect_shape(c):
 
     # Si el contorno tiene 4 vértices, entonces es un cuadrado o un rectángulo
     elif len(approx) == 4:
-        shape = "Square"
-        servo_code = '1'
+        # Calcular la relación de aspecto de la figura
+        (x, y, w, h) = cv2.boundingRect(approx)
+        ar = w / float(h)
+
+        # Un cuadrado tendrá una relación de aspecto cercana a uno,
+        # mientras que un rectángulo tendrá una relación de aspecto mayor o menor que uno
+        if ar >= 0.95 and ar <= 1.05:
+            shape = "Square"
+            servo_code = '1'
+        else:
+            shape = "Rectangle"
+            servo_code = '1'
 
     # Si el contorno es un círculo
     else:
@@ -104,8 +125,12 @@ def shape_detector(frame):
     
     servo_code = None
     
-    # Convertir la imagen a escala de grises y aplicar un desenfoque para suavizarla
+    # Convertir la imagen a escala de grises
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    
+     # Mejorar el contraste de la imagen en escala de grises
+    gray = cv2.equalizeHist(gray)
+ 
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
 
     # Realizar una detección de bordes y encontrar los contornos en la imagen
@@ -113,7 +138,7 @@ def shape_detector(frame):
     contours, _ = cv2.findContours(edged.copy(), cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
     
     # Definir el valor umbral para el área del contorno
-    shape_area_threshold = 150
+    shape_area_threshold = 250
     
     # Recorrer cada contorno
     for c in contours:
@@ -239,4 +264,13 @@ def classifier_selector(frame,option="color",circle_diameter=4.0, large_size_thr
              return None, None
         else:
             return size_detector(frame,pixels_per_cm,large_size_threshold,medium_size_threshold)
-        
+
+# FUNCIONES DE LA INTERFAZ
+def moving_average(values, window_size):
+    return np.convolve(values, np.ones(window_size)/window_size, mode='valid')
+
+def update_led(LED,obstacle_sensor_state_value):
+    if obstacle_sensor_state_value == 1:
+        LED.itemconfig(1, fill='yellow')
+    else:
+        LED.itemconfig(1, fill='gray')
