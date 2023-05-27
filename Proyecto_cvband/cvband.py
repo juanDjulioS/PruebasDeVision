@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import serial.tools.list_ports
 
 MAX_SAMPLES = 100  # número máximo de muestras a almacenar
 CAMERA_WEB = 0
@@ -9,7 +10,6 @@ CIRCLE_DIAMETER = 4.0
 INTERVAL = 10
 DETECTION_TIME = 5  # Duración en segundos
 BAUDRATE = 9600
-PORT = 'COM6'
 
 # FUNCIONES DE CLASIFICACIÓN DE VISION
 
@@ -274,3 +274,10 @@ def update_led(LED,obstacle_sensor_state_value):
         LED.itemconfig(1, fill='yellow')
     else:
         LED.itemconfig(1, fill='gray')
+
+def get_arduino_port():
+    ports = list(serial.tools.list_ports.comports())
+    for port in ports:
+        if "Arduino" in port.description:
+            return str(port.device)
+    return None
