@@ -271,9 +271,20 @@ def moving_average(values, window_size):
 
 def update_led(LED,obstacle_sensor_state_value):
     if obstacle_sensor_state_value == 1:
-        LED.itemconfig(1, fill='yellow')
+        # LED encendido
+        LED.create_oval(5, 5, 35, 35, fill='#ff0000', outline='#ff0000')
+        LED.create_oval(4, 4, 36, 36, outline='#ff3333', width=1)
+        LED.create_oval(3, 3, 37, 37, outline='#ff6666', width=1)
+        LED.create_oval(2, 2, 38, 38, outline='#ff9999', width=1)
+        LED.create_oval(1, 1, 39, 39, outline='#ffcccc', width=1)
+        LED.create_oval(0, 0, 40, 40, outline='#ffffff', width=1)
     else:
-        LED.itemconfig(1, fill='gray')
+        # LED apagado
+        LED.create_oval(5, 5, 35, 35, fill='#555555', outline='#555555')
+        LED.create_oval(4, 4, 36, 36, outline='#666666', width=1)
+        LED.create_oval(3, 3, 37, 37, outline='#777777', width=1)
+        LED.create_oval(2, 2, 38, 38, outline='#888888', width=1)
+        LED.create_oval(1, 1, 39, 39, outline='#999999', width=1)
 
 def get_arduino_port():
     ports = list(serial.tools.list_ports.comports())
