@@ -39,7 +39,8 @@ layout = [
         ],expand_x=True),
         sg.Column([
             [sg.Frame(title="", layout=[[sg.Image(filename="", key="webcam", size=CAMERA_ZISE)]], border_width=5,title_color='#1B6497')],
-        ], element_justification='center', pad=((50, 50), (50, 50)),expand_x=True),
+            [sg.Text("Powered by "),sg.Image(filename="bing.png"),sg.Image(filename="chatgpt.png")]
+        ], element_justification='center',expand_x=True),
     ],
 ]
 
