@@ -29,35 +29,33 @@ layout = [
             [sg.Canvas(key="graph", size=(400, 200))],
             [sg.Text("PWM", font=("Helvetica", 16,'bold'),text_color='white')],
             [sg.Slider(range=(0, 255), key="pwm_slider", enable_events=True, orientation="h", pad=((0, 0), (0, 15)),size=(20, 20)),
-             sg.InputText(key="pwm_text", enable_events=True, size=(20, 1),pad=((65,0), (0,0))),sg.Button("Update", font=("Helvetica", 12,'bold'), button_color=('white', '#1B6497'), size=(10, 1),pad=((15,0), (0,0)))],
-            [sg.Text("Obstacle Sensor State",font=("Helvetica", 16,'bold'), text_color='white')],
+             sg.InputText(key="pwm_text", enable_events=True, size=(20, 1),pad=((80,0), (0,0))),sg.Button("Update", font=("Helvetica", 12,'bold'), button_color=('white', '#1B6497'), size=(10, 1),pad=((14,0), (0,0)))],
+            [sg.Text("Obstacle Sensor State",font=("Helvetica", 16,'bold'), text_color='white'), sg.Text("px/cm: ",key="calibration_text", font = "Helvetica 12 normal")],
             [sg.Canvas(key="led", size=(40, 40))],
             [sg.Text("Classifier",font=("Helvetica", 16, 'bold'), text_color='white')],
             [sg.Checkbox("Color", key="color_checkbox", enable_events=True, font=("Helvetica", 12), text_color='white', size=(10, 1))],
             [sg.Checkbox("Shape", key="shape_checkbox", enable_events=True, font=("Helvetica", 12), text_color='white', size=(10, 1))],
             [sg.Checkbox("Size", key="size_checkbox", enable_events=True, font=("Helvetica", 12), text_color='white', size=(10, 1))],
-            [sg.Button("Calibrate Camera", size=(15, 1), font="Helvetica 16  bold",button_color=('white','#1B6497')),sg.Button("Stop", size=(10, 1), font="Helvetica 16 bold",button_color=('white','red'), pad=((179,0), (0,0)))],
-            [sg.Text("px/cm: ",key="calibration_text", font = "Helvetica 12 normal")]
-        ]),
+            [sg.Button("Calibrate Camera", size=(15, 1), font="Helvetica 16  bold",button_color=('white','#1B6497')),sg.Button("Stop", size=(10, 1), font="Helvetica 16 bold",button_color=('white','red'), pad=((180,0), (0,0)))]
+        ],expand_x=True),
         sg.Column([
             [sg.Frame(title="", layout=[[sg.Image(filename="", key="webcam", size=CAMERA_ZISE)]], border_width=5,title_color='#1B6497')],
-        ], element_justification='center', pad=((50, 50), (50, 50))),
+        ], element_justification='center', pad=((50, 50), (50, 50)),expand_x=True),
     ],
 ]
 
+
 # Crear la ventana principal
-window = sg.Window("VISABAT Inc.", layout,finalize=True)
+window = sg.Window("VISABAT Inc.", layout, finalize=True, resizable=True)
+window.read(timeout=0)
 
 # Ocultar la ventana principal mientras se cargan y posicionan los elementos
 window.Hide()
-window.read(timeout=0)
-window.Maximize()
-
 
 start_time_read = time.time()
 graph = window["graph"].TKCanvas
 
-fig, ax = plt.subplots(figsize=(5.1,2.2))
+fig, ax = plt.subplots(figsize=(5.3,2.2))
 ax.set_facecolor('#1A2835')
 ax.tick_params(colors='white')
 ax.xaxis.label.set_color('white')
@@ -70,7 +68,7 @@ ax.spines['right'].set_color('white')
 ax.set_ylim(0, 430)
 ax.set_xlabel('time (s)')
 ax.set_ylabel('velocity (rpm)')
-ax.set_title("Real-time rpm reading",color='white', fontname='Arial', fontweight='bold', fontsize=20, fontstyle='italic')
+ax.set_title("REAL-TIME RPM READING",color='white', fontname='Arial', fontweight='bold', fontsize=20, fontstyle='italic')
 
 
 line, =ax.plot([],[],linewidth=2, linestyle='solid')
