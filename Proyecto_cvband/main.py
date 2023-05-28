@@ -1,5 +1,4 @@
 import PySimpleGUI as sg
-import cv2
 import tkinter as tk
 import matplotlib.pyplot as plt
 import time
@@ -21,9 +20,12 @@ sg.theme("DarkBlue")
 stop_event = Event()
 data_deque = deque(maxlen=MAX_SAMPLES)
 CAMERA_ZISE = (600,600)
+
+
 layout = [
     [
         sg.Column([
+            [sg.Image(filename="logo.png",size=(100,100)), sg.Text("CVBAND Project 1.0 ver.", font=("Helvetica", 24))],
             [sg.Canvas(key="graph", size=(400, 200))],
             [sg.Text("PWM", font=("Helvetica", 16,'bold'),text_color='white')],
             [sg.Slider(range=(0, 255), key="pwm_slider", enable_events=True, orientation="h", pad=((0, 0), (0, 15)),size=(20, 20)),
@@ -35,21 +37,27 @@ layout = [
             [sg.Checkbox("Shape", key="shape_checkbox", enable_events=True, font=("Helvetica", 12), text_color='white', size=(10, 1))],
             [sg.Checkbox("Size", key="size_checkbox", enable_events=True, font=("Helvetica", 12), text_color='white', size=(10, 1))],
             [sg.Button("Calibrate Camera", size=(15, 1), font="Helvetica 16  bold",button_color=('white','#1B6497')),sg.Button("Stop", size=(10, 1), font="Helvetica 16 bold",button_color=('white','red'), pad=((179,0), (0,0)))],
+            [sg.Text("px/cm: ",key="calibration_text", font = "Helvetica 12 normal")]
         ]),
         sg.Column([
             [sg.Frame(title="", layout=[[sg.Image(filename="", key="webcam", size=CAMERA_ZISE)]], border_width=5,title_color='#1B6497')],
         ], element_justification='center', pad=((50, 50), (50, 50))),
     ],
 ]
-window = sg.Window("CVBand GUI", layout)
+
+# Crear la ventana principal
+window = sg.Window("VISABAT Inc.", layout,finalize=True)
+
+# Ocultar la ventana principal mientras se cargan y posicionan los elementos
+window.Hide()
 window.read(timeout=0)
 window.Maximize()
+
 
 start_time_read = time.time()
 graph = window["graph"].TKCanvas
 
 fig, ax = plt.subplots(figsize=(5.1,2.2))
-
 ax.set_facecolor('#1A2835')
 ax.tick_params(colors='white')
 ax.xaxis.label.set_color('white')
@@ -75,12 +83,7 @@ plt.close(fig)
 canvas = FigureCanvasTkAgg(fig, master=window["graph"].TKCanvas)
 canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 LED = window["led"].TKCanvas
-# LED apagado
-LED.create_oval(5, 5, 35, 35, fill='#555555', outline='#555555')
-LED.create_oval(4, 4, 36, 36, outline='#666666', width=1)
-LED.create_oval(3, 3, 37, 37, outline='#777777', width=1)
-LED.create_oval(2, 2, 38, 38, outline='#888888', width=1)
-LED.create_oval(1, 1, 39, 39, outline='#999999', width=1)
+update_led(LED,0)
 
 def update_graph(time_values, rpm_values):
     window_size = 5
@@ -98,15 +101,15 @@ def show_webcam(frame):
     window["webcam"].update(data=imgbytes)
     window.refresh()
 
-def read_serial_data(port, baudrate):
+def read_serial_data(baudrate):
     global ser
+    port = None
     while not stop_event.is_set():
-        try:
-            ser = serial.Serial(port, baudrate)
+        port = get_arduino_port()
+        if port is not None:
             break
-        except serial.SerialException as e:
-            print(f"Error al conectar al puerto serial {port}")
-            time.sleep(1)
+        time.sleep(1)
+    ser = serial.Serial(port, baudrate)
     obstacle_sensor_state_value = 0
     while not stop_event.is_set():
         line = ser.readline().decode('utf-8', errors='ignore').strip()
@@ -120,7 +123,8 @@ def read_serial_data(port, baudrate):
             except ValueError:
                 pass
 
-thread = Thread(target=read_serial_data, args=(get_arduino_port(), BAUDRATE))
+
+thread = Thread(target=read_serial_data, args=(BAUDRATE,))
 thread.start()
 current_time = int(round(time.time()*1000))
 calibrated = False
@@ -128,13 +132,17 @@ obstacle_detected = False
 start_time = None
 servo_codes = []
 
+# Mostrar la ventana principal una vez que todo esté listo
+window.UnHide()
+
 while True:
-    event, values = window.read(timeout=100)
+    event, values = window.read(timeout=1)
     ret, frame = cap.read()
     
     if event == "Stop" or event == sg.WIN_CLOSED:
         stop_event.set()
-        ser.write(f"0_2\n".encode())
+        if ser is not None:
+            ser.write(f"0_2\n".encode())
         cap.release()
         break
     
@@ -142,7 +150,7 @@ while True:
         pixels_per_cm = calibrate_camera(frame)
         if pixels_per_cm is not None:
             calibrated = True
-            print(f"Pixels per cm: {pixels_per_cm}")
+            window["calibration_text"].update(f"px/cm: {pixels_per_cm:.2f}")
                  
     elif event == "color_checkbox" and values["color_checkbox"]:
         window["shape_checkbox"].update(value=False)
@@ -164,14 +172,16 @@ while True:
         try:
             pwm_value = int(values["pwm_text"])
             window["pwm_slider"].update(value=pwm_value)
-            ser.write(f"{pwm_value}_{servo_code}\n".encode())
+            if ser is not None:
+                ser.write(f"{pwm_value}_{servo_code}\n".encode())
         except ValueError:
             pass   
         
     elif event == "pwm_slider":
         pwm_value = int(values["pwm_slider"])
         window["pwm_text"].update(value=pwm_value)
-        ser.write(f"{pwm_value}_{servo_code}\n".encode())
+        if ser is not None:   
+            ser.write(f"{pwm_value}_{servo_code}\n".encode())
   
     # Eventos para modificar servo_code
     if values["color_checkbox"] and obstacle_detected:
@@ -181,7 +191,8 @@ while True:
         if time.time() - start_time >= DETECTION_TIME:
             most_common_servo_code = mode(servo_codes)
             servo_code = most_common_servo_code
-            ser.write(f"{pwm_value}_{servo_code}\n".encode())
+            if ser is not None:
+                ser.write(f"{pwm_value}_{servo_code}\n".encode())
             window["color_checkbox"].update(value=False)
             obstacle_detected = False
             start_time = None
@@ -194,7 +205,8 @@ while True:
         if time.time() - start_time >= DETECTION_TIME:
             most_common_servo_code = mode(servo_codes)
             servo_code = most_common_servo_code  # Actualizar el valor de servo_code
-            ser.write(f"{pwm_value}_{most_common_servo_code}\n".encode())
+            if ser is not None:
+                ser.write(f"{pwm_value}_{most_common_servo_code}\n".encode())
             window["shape_checkbox"].update(value=False)
             obstacle_detected = False
             start_time = None
@@ -207,7 +219,8 @@ while True:
         if time.time() - start_time >= DETECTION_TIME:
             most_common_servo_code = mode(servo_codes)
             servo_code = most_common_servo_code  # Actualizar el valor de servo_code
-            ser.write(f"{pwm_value}_{most_common_servo_code}\n".encode())
+            if ser is not None:  
+                ser.write(f"{pwm_value}_{most_common_servo_code}\n".encode())
             window["size_checkbox"].update(value=False)
             obstacle_detected = False
             start_time = None
@@ -228,9 +241,7 @@ while True:
             start_time = time.time()
         update_graph(time_values, rpm_values)
         update_led(LED,obstacle_sensor_state_value)
-        
+    
     window.refresh()
-
 window.close()
-
 cap.release()
