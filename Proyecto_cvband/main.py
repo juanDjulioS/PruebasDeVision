@@ -6,8 +6,7 @@ import serial
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from threading import Thread, Event
 from cvband import *
-from collections import deque
-from statistics import mode
+from collections import deque, Counter
 
 pixels_per_cm = None
 processed_frame = None
@@ -121,6 +120,22 @@ def read_serial_data(baudrate):
             except ValueError:
                 pass
 
+def handle_checkbox_event(event, values):
+    if event == "color_checkbox" and values["color_checkbox"]:
+        window["shape_checkbox"].update(value=False)
+        window["size_checkbox"].update(value=False)
+
+    elif event == "shape_checkbox" and values["shape_checkbox"]:
+        window["color_checkbox"].update(value=False)
+        window["size_checkbox"].update(value=False)
+
+    elif event == "size_checkbox" and values["size_checkbox"]:
+        if not calibrated:
+            sg.popup("Debes calibrar la cámara antes de poder usar la función de detección de tamaño. Coloca un círculo debajo de la cámara con un diámetro conocido y presiona el botón 'Calibrate Camera'.")
+            window["size_checkbox"].update(value=False)
+        else:
+            window["color_checkbox"].update(value=False)
+            window["shape_checkbox"].update(value=False)
 
 thread = Thread(target=read_serial_data, args=(BAUDRATE,))
 thread.start()
@@ -128,7 +143,7 @@ current_time = int(round(time.time()*1000))
 calibrated = False
 obstacle_detected = False
 start_time = None
-servo_codes = []
+servo_codes = Counter()
 
 # Mostrar la ventana principal una vez que todo esté listo
 window.UnHide()
@@ -150,23 +165,11 @@ while True:
             calibrated = True
             window["calibration_text"].update(f"px/cm: {pixels_per_cm:.2f}")
                  
-    elif event == "color_checkbox" and values["color_checkbox"]:
-        window["shape_checkbox"].update(value=False)
-        window["size_checkbox"].update(value=False)
-
-    elif event == "shape_checkbox" and values["shape_checkbox"]:
-        window["color_checkbox"].update(value=False)
-        window["size_checkbox"].update(value=False)
-
-    elif event == "size_checkbox" and values["size_checkbox"]:
-        if not calibrated:
-            sg.popup("Debes calibrar la cámara antes de poder usar la función de detección de tamaño. Coloca un círculo debajo de la cámara con un diámetro conocido y presiona el botón 'Calibrate Camera'.")
-            window["size_checkbox"].update(value=False)
-        else:
-            window["color_checkbox"].update(value=False)
-            window["shape_checkbox"].update(value=False)        
+    # Llamada a la función handle_checkbox_event para manejar los eventos de los checkboxes
+    handle_checkbox_event(event, values)       
+    
     # Eventos para modificar pwm_value       
-    elif event == "Update":
+    if event == "Update":
         try:
             pwm_value = int(values["pwm_text"])
             window["pwm_slider"].update(value=pwm_value)
@@ -184,10 +187,10 @@ while True:
     # Eventos para modificar servo_code
     if values["color_checkbox"] and obstacle_detected:
         servo_code, processed_frame = color_detector(frame)
-        servo_codes.append(servo_code)
+        servo_codes[servo_code] += 1
         show_webcam(processed_frame)
         if time.time() - start_time >= DETECTION_TIME:
-            most_common_servo_code = mode(servo_codes)
+            most_common_servo_code = servo_codes.most_common(1)[0][0]
             servo_code = most_common_servo_code
             if ser is not None:
                 ser.write(f"{pwm_value}_{servo_code}\n".encode())
@@ -198,10 +201,10 @@ while True:
     
     elif values["shape_checkbox"] and obstacle_detected:
         servo_code, processed_frame = shape_detector(frame)
-        servo_codes.append(servo_code)
+        servo_codes[servo_code] += 1
         show_webcam(processed_frame)
         if time.time() - start_time >= DETECTION_TIME:
-            most_common_servo_code = mode(servo_codes)
+            most_common_servo_code = servo_codes.most_common(1)[0][0]
             servo_code = most_common_servo_code  # Actualizar el valor de servo_code
             if ser is not None:
                 ser.write(f"{pwm_value}_{most_common_servo_code}\n".encode())
@@ -212,10 +215,10 @@ while True:
     
     elif values["size_checkbox"] and obstacle_detected:
         servo_code, processed_frame = size_detector(frame, pixels_per_cm, LARGE_SIZE_THRESHOLD, MEDIUM_SIZE_THRESHOLD)
-        servo_codes.append(servo_code)
+        servo_codes[servo_code] += 1
         show_webcam(processed_frame)
         if time.time() - start_time >= DETECTION_TIME:
-            most_common_servo_code = mode(servo_codes)
+            most_common_servo_code = servo_codes.most_common(1)[0][0]
             servo_code = most_common_servo_code  # Actualizar el valor de servo_code
             if ser is not None:  
                 ser.write(f"{pwm_value}_{most_common_servo_code}\n".encode())
