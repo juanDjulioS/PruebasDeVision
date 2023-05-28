@@ -20,28 +20,57 @@ cap = cv2.VideoCapture(CAMERA_WEB)
 sg.theme("DarkBlue")
 stop_event = Event()
 data_deque = deque(maxlen=MAX_SAMPLES)
-
-layout = [[sg.Canvas(key="graph", size=(400, 200)), sg.Image(filename="", key="webcam", size=(300, 300), pad=((50, 50), (50, 50)))],
-          [sg.Text("pwm:"), sg.Slider(range=(0, 255), key="pwm_slider",
-                                      enable_events=True, orientation="h")],
-          [sg.InputText(key="pwm_text", enable_events=True),
-           sg.Button("Update")],
-          [sg.Text("Obstacle Sensor State"), sg.Canvas(
-              key="led", size=(40, 40))],
-          [sg.Text("Classifier")], [[sg.Checkbox("Color", key="color_checkbox", enable_events=True)], [sg.Checkbox("Shape", key="shape_checkbox", enable_events=True)], [
-              sg.Checkbox("Size", key="size_checkbox", enable_events=True)], sg.Button("Calibrate Camera"), sg.Button("Stop", size=(10, 1), pad=((0, 280), 3), font="Helvetica 14")],
-          ]
+CAMERA_ZISE = (600,600)
+layout = [
+    [
+        sg.Column([
+            [sg.Canvas(key="graph", size=(400, 200))],
+            [sg.Text("PWM:", font=("Helvetica", 12)),sg.Slider(range=(0, 255), key="pwm_slider", enable_events=True, orientation="h", pad=((0, 0), (0, 15)))],
+            [],
+            [sg.Button("Update", font=("Helvetica", 12), button_color=('white', '#1B6497'), size=(10, 1)),sg.InputText(key="pwm_text", enable_events=True, size=(33, 1)) ],
+            [sg.Text("Obstacle Sensor State",font=("Helvetica", 16), text_color='white')],
+            [sg.Canvas(key="led", size=(40, 40))],
+            [sg.Text("Classifier",font=("Helvetica", 16), text_color='white')],
+            [sg.Checkbox("Color", key="color_checkbox", enable_events=True, font=("Helvetica", 12), text_color='white', size=(10, 1))],
+            [sg.Checkbox("Shape", key="shape_checkbox", enable_events=True, font=("Helvetica", 12), text_color='white', size=(10, 1))],
+            [sg.Checkbox("Size", key="size_checkbox", enable_events=True, font=("Helvetica", 12), text_color='white', size=(10, 1))],
+            [sg.Button("Calibrate Camera", size=(15, 1), font="Helvetica 16",button_color=('white','#1B6497')),sg.Button("Stop", size=(10, 1), font="Helvetica 16",button_color=('white','red'), pad=((255,0), (0,0)))],
+            [],
+        ]),
+        sg.Column([
+            [sg.Image(filename="", key="webcam", size=CAMERA_ZISE)],
+        ], element_justification='center', pad=((50, 50), (50, 50))),
+    ],
+]
 window = sg.Window("GUI en python", layout)
 window.read(timeout=0)
+window.Maximize()
 
 start_time_read = time.time()
 graph = window["graph"].TKCanvas
 
-fig, ax = plt.subplots(figsize=(4, 3))
+fig, ax = plt.subplots(figsize=(5.1,2.2))
+
+ax.set_facecolor('#1A2835')
+ax.tick_params(colors='white')
+ax.xaxis.label.set_color('white')
+ax.yaxis.label.set_color('white')
+ax.spines['bottom'].set_color('white')
+ax.spines['top'].set_color('white')
+ax.spines['left'].set_color('white')
+ax.spines['right'].set_color('white')
+
 ax.set_ylim(0, 430)
-ax.set_xlabel('Tiempo (s)')
-ax.set_ylabel('Velocidad (rpm)')
-line, =ax.plot([],[])
+ax.set_xlabel('time (s)')
+ax.set_ylabel('velocity (rpm)')
+ax.set_title("Real-time rpm reading",color='white', fontname='Arial', fontweight='bold', fontsize=20, fontstyle='italic')
+
+
+line, =ax.plot([],[],linewidth=2, linestyle='solid')
+fig.set_facecolor('#1A2835')
+line.set_color('lightblue')
+line.set_linestyle('--')
+ax.fill_between([], [], color='white', alpha=0.9)
 fig.tight_layout()
 plt.close(fig)
 
@@ -61,7 +90,7 @@ def update_graph(time_values, rpm_values):
 
 def show_webcam(frame):
     # Redimensionar la imagen al tamaño del widget Image (300x300)
-    frame = cv2.resize(frame, (300, 300))
+    frame = cv2.resize(frame, CAMERA_ZISE)
     imgbytes = cv2.imencode('.png', frame)[1].tobytes()
     window["webcam"].update(data=imgbytes)
     window.refresh()
