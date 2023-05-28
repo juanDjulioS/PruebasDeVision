@@ -13,7 +13,7 @@ processed_frame = None
 pwm_value = 0
 ser = None
 servo_code='2'
-cap = cv2.VideoCapture(CAMERA_WEB)
+cap = cv2.VideoCapture(WEBCAM)
 
 sg.theme("DarkBlue")
 stop_event = Event()
@@ -24,7 +24,7 @@ CAMERA_ZISE = (600,600)
 layout = [
     [
         sg.Column([
-            [sg.Image(filename="logo.png",size=(100,100)), sg.Text("CVBAND Project 1.0 ver.", font=("Helvetica", 24))],
+            [sg.Image(filename="logo.png",size=(100,100)), sg.Text("CVBAND Project", font=("Helvetica", 24))],
             [sg.Canvas(key="graph", size=(400, 200))],
             [sg.Text("PWM", font=("Helvetica", 16,'bold'),text_color='white')],
             [sg.Slider(range=(0, 255), key="pwm_slider", enable_events=True, orientation="h", pad=((0, 0), (0, 15)),size=(20, 20)),
@@ -132,7 +132,7 @@ def handle_checkbox_event(event, values):
 
     elif event == "size_checkbox" and values["size_checkbox"]:
         if not calibrated:
-            sg.popup("Debes calibrar la cámara antes de poder usar la función de detección de tamaño. Coloca un círculo debajo de la cámara con un diámetro conocido y presiona el botón 'Calibrate Camera'.")
+            sg.popup_non_blocking("Debes calibrar la cámara antes de poder usar la función de detección de tamaño. Coloca un círculo debajo de la cámara con un diámetro conocido y presiona el botón 'Calibrate Camera'.")
             window["size_checkbox"].update(value=False)
         else:
             window["color_checkbox"].update(value=False)
