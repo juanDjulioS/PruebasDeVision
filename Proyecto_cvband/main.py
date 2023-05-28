@@ -25,24 +25,23 @@ layout = [
     [
         sg.Column([
             [sg.Canvas(key="graph", size=(400, 200))],
-            [sg.Text("PWM:", font=("Helvetica", 12)),sg.Slider(range=(0, 255), key="pwm_slider", enable_events=True, orientation="h", pad=((0, 0), (0, 15)))],
-            [],
-            [sg.Button("Update", font=("Helvetica", 12), button_color=('white', '#1B6497'), size=(10, 1)),sg.InputText(key="pwm_text", enable_events=True, size=(33, 1)) ],
-            [sg.Text("Obstacle Sensor State",font=("Helvetica", 16), text_color='white')],
+            [sg.Text("PWM", font=("Helvetica", 16,'bold'),text_color='white')],
+            [sg.Slider(range=(0, 255), key="pwm_slider", enable_events=True, orientation="h", pad=((0, 0), (0, 15)),size=(20, 20)),
+             sg.InputText(key="pwm_text", enable_events=True, size=(20, 1),pad=((65,0), (0,0))),sg.Button("Update", font=("Helvetica", 12,'bold'), button_color=('white', '#1B6497'), size=(10, 1),pad=((15,0), (0,0)))],
+            [sg.Text("Obstacle Sensor State",font=("Helvetica", 16,'bold'), text_color='white')],
             [sg.Canvas(key="led", size=(40, 40))],
-            [sg.Text("Classifier",font=("Helvetica", 16), text_color='white')],
+            [sg.Text("Classifier",font=("Helvetica", 16, 'bold'), text_color='white')],
             [sg.Checkbox("Color", key="color_checkbox", enable_events=True, font=("Helvetica", 12), text_color='white', size=(10, 1))],
             [sg.Checkbox("Shape", key="shape_checkbox", enable_events=True, font=("Helvetica", 12), text_color='white', size=(10, 1))],
             [sg.Checkbox("Size", key="size_checkbox", enable_events=True, font=("Helvetica", 12), text_color='white', size=(10, 1))],
-            [sg.Button("Calibrate Camera", size=(15, 1), font="Helvetica 16",button_color=('white','#1B6497')),sg.Button("Stop", size=(10, 1), font="Helvetica 16",button_color=('white','red'), pad=((255,0), (0,0)))],
-            [],
+            [sg.Button("Calibrate Camera", size=(15, 1), font="Helvetica 16  bold",button_color=('white','#1B6497')),sg.Button("Stop", size=(10, 1), font="Helvetica 16 bold",button_color=('white','red'), pad=((179,0), (0,0)))],
         ]),
         sg.Column([
-            [sg.Image(filename="", key="webcam", size=CAMERA_ZISE)],
+            [sg.Frame(title="", layout=[[sg.Image(filename="", key="webcam", size=CAMERA_ZISE)]], border_width=5,title_color='#1B6497')],
         ], element_justification='center', pad=((50, 50), (50, 50))),
     ],
 ]
-window = sg.Window("GUI en python", layout)
+window = sg.Window("CVBand GUI", layout)
 window.read(timeout=0)
 window.Maximize()
 
@@ -68,8 +67,7 @@ ax.set_title("Real-time rpm reading",color='white', fontname='Arial', fontweight
 
 line, =ax.plot([],[],linewidth=2, linestyle='solid')
 fig.set_facecolor('#1A2835')
-line.set_color('lightblue')
-line.set_linestyle('--')
+line.set_color('white')
 ax.fill_between([], [], color='white', alpha=0.9)
 fig.tight_layout()
 plt.close(fig)
@@ -77,7 +75,12 @@ plt.close(fig)
 canvas = FigureCanvasTkAgg(fig, master=window["graph"].TKCanvas)
 canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 LED = window["led"].TKCanvas
-LED.create_oval(5, 5, 35, 35, fill='gray')
+# LED apagado
+LED.create_oval(5, 5, 35, 35, fill='#555555', outline='#555555')
+LED.create_oval(4, 4, 36, 36, outline='#666666', width=1)
+LED.create_oval(3, 3, 37, 37, outline='#777777', width=1)
+LED.create_oval(2, 2, 38, 38, outline='#888888', width=1)
+LED.create_oval(1, 1, 39, 39, outline='#999999', width=1)
 
 def update_graph(time_values, rpm_values):
     window_size = 5
