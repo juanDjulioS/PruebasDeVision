@@ -94,7 +94,8 @@ def update_graph(time_values, rpm_values):
 
 def show_webcam(frame):
     # Redimensionar la imagen al tamaño del widget Image (300x300)
-    frame = cv2.resize(frame, CAMERA_ZISE)
+    if frame is not None:   
+        frame = cv2.resize(frame, CAMERA_ZISE)
     imgbytes = cv2.imencode('.png', frame)[1].tobytes()
     window["webcam"].update(data=imgbytes)
     window.refresh()
@@ -145,6 +146,7 @@ calibrated = False
 obstacle_detected = False
 start_time = None
 servo_codes = Counter()
+color_mask = None
 
 # Mostrar la ventana principal una vez que todo esté listo
 window.UnHide()
@@ -187,29 +189,30 @@ while True:
   
     # Eventos para modificar servo_code
     if values["color_checkbox"] and obstacle_detected:
-        servo_code, processed_frame = color_detector(frame)
-        servo_codes[servo_code] += 1
-        show_webcam(processed_frame)
+        servo_code, processed_frame, color_mask = color_detector(frame)
+        if color_mask is not None:
+            servo_codes[servo_code] += 1
+            show_webcam(processed_frame)
         if time.time() - start_time >= DETECTION_TIME:
             most_common_servo_code = servo_codes.most_common(1)[0][0]
             servo_code = most_common_servo_code
-            if ser is not None:
+            if ser:
                 ser.write(f"{pwm_value}_{servo_code}\n".encode())
-            window["color_checkbox"].update(value=False)
             obstacle_detected = False
             start_time = None
             servo_codes.clear()
     
     elif values["shape_checkbox"] and obstacle_detected:
-        servo_code, processed_frame = shape_detector(frame)
-        servo_codes[servo_code] += 1
-        show_webcam(processed_frame)
+        _, _, color_mask = color_detector(frame,draw=False)
+        if color_mask is not None:
+            servo_code, processed_frame = shape_detector(frame,color_mask)
+            servo_codes[servo_code] += 1
+            show_webcam(processed_frame)
         if time.time() - start_time >= DETECTION_TIME:
             most_common_servo_code = servo_codes.most_common(1)[0][0]
             servo_code = most_common_servo_code  # Actualizar el valor de servo_code
-            if ser is not None:
+            if ser:
                 ser.write(f"{pwm_value}_{most_common_servo_code}\n".encode())
-            window["shape_checkbox"].update(value=False)
             obstacle_detected = False
             start_time = None
             servo_codes.clear()
@@ -223,7 +226,6 @@ while True:
             servo_code = most_common_servo_code  # Actualizar el valor de servo_code
             if ser is not None:  
                 ser.write(f"{pwm_value}_{most_common_servo_code}\n".encode())
-            window["size_checkbox"].update(value=False)
             obstacle_detected = False
             start_time = None
             servo_codes.clear()
