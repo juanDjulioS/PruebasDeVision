@@ -14,11 +14,10 @@ pwm_value = 0
 ser = None
 servo_code='2'
 cap = cv2.VideoCapture(WEBCAM)
-
+DETECTION_TIME = 2
 sg.theme("DarkBlue")
 stop_event = Event()
 data_deque = deque(maxlen=MAX_SAMPLES)
-CAMERA_ZISE = (600,600)
 
 
 layout = [
@@ -48,6 +47,7 @@ layout = [
 # Crear la ventana principal
 window = sg.Window("VISABAT Inc.", layout, finalize=True, resizable=True)
 window.read(timeout=0)
+window.Maximize()
 
 # Ocultar la ventana principal mientras se cargan y posicionan los elementos
 window.Hide()
@@ -147,14 +147,22 @@ obstacle_detected = False
 start_time = None
 servo_codes = Counter()
 color_mask = None
-
 # Mostrar la ventana principal una vez que todo esté listo
 window.UnHide()
+detection_start_time = None
 
 while True:
     event, values = window.read(timeout=1)
     ret, frame = cap.read()
-    
+    if data_deque:
+        _, _, obstacle_sensor_state_value = data_deque[-1]
+        time_values = [data[0] for data in data_deque]
+        rpm_values = [data[1] for data in data_deque]
+        if obstacle_sensor_state_value == 1 and not obstacle_detected:
+            obstacle_detected = True
+            start_time = time.time()
+        update_graph(time_values, rpm_values)
+        update_led(LED,obstacle_sensor_state_value)
     if event == "Stop" or event == sg.WIN_CLOSED:
         stop_event.set()
         if ser is not None:
@@ -163,7 +171,7 @@ while True:
         break
     
     elif event == "Calibrate Camera":
-        pixels_per_cm = calibrate_camera(frame)
+        pixels_per_cm = calibrate_camera(frame,CIRCLE_DIAMETER)
         if pixels_per_cm is not None:
             calibrated = True
             window["calibration_text"].update(f"px/cm: {pixels_per_cm:.2f}")
@@ -190,25 +198,25 @@ while True:
     # Eventos para modificar servo_code
     if values["color_checkbox"] and obstacle_detected:
         servo_code, processed_frame, color_mask = color_detector(frame)
-        if color_mask is not None:
-            servo_codes[servo_code] += 1
+        servo_codes[servo_code] += 1
+        if processed_frame is not None:
             show_webcam(processed_frame)
-        if time.time() - start_time >= DETECTION_TIME:
+    
+        if time.time() - start_time >= PROCESSING_TIME:
             most_common_servo_code = servo_codes.most_common(1)[0][0]
             servo_code = most_common_servo_code
             if ser:
                 ser.write(f"{pwm_value}_{servo_code}\n".encode())
+                pass
             obstacle_detected = False
             start_time = None
             servo_codes.clear()
-    
     elif values["shape_checkbox"] and obstacle_detected:
-        _, _, color_mask = color_detector(frame,draw=False)
-        if color_mask is not None:
-            servo_code, processed_frame = shape_detector(frame,color_mask)
-            servo_codes[servo_code] += 1
+        servo_code, processed_frame = shape_detector(frame)
+        servo_codes[servo_code] += 1
+        if processed_frame is not None:
             show_webcam(processed_frame)
-        if time.time() - start_time >= DETECTION_TIME:
+        if time.time() - start_time >= PROCESSING_TIME:
             most_common_servo_code = servo_codes.most_common(1)[0][0]
             servo_code = most_common_servo_code  # Actualizar el valor de servo_code
             if ser:
@@ -221,7 +229,7 @@ while True:
         servo_code, processed_frame = size_detector(frame, pixels_per_cm, LARGE_SIZE_THRESHOLD, MEDIUM_SIZE_THRESHOLD)
         servo_codes[servo_code] += 1
         show_webcam(processed_frame)
-        if time.time() - start_time >= DETECTION_TIME:
+        if time.time() - start_time >= PROCESSING_TIME:
             most_common_servo_code = servo_codes.most_common(1)[0][0]
             servo_code = most_common_servo_code  # Actualizar el valor de servo_code
             if ser is not None:  
@@ -235,17 +243,6 @@ while True:
         if now - current_time >= INTERVAL:
             show_webcam(frame)
             current_time = now
-     
-    if data_deque:
-        _, _, obstacle_sensor_state_value = data_deque[-1]
-        time_values = [data[0] for data in data_deque]
-        rpm_values = [data[1] for data in data_deque]
-        if obstacle_sensor_state_value == 1 and not obstacle_detected:
-            obstacle_detected = True
-            start_time = time.time()
-        update_graph(time_values, rpm_values)
-        update_led(LED,obstacle_sensor_state_value)
-    
     window.refresh()
 window.close()
 cap.release()
