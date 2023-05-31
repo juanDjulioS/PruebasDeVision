@@ -3,78 +3,17 @@ import numpy as np
 import serial.tools.list_ports
 
 MAX_SAMPLES = 100  # número máximo de muestras a almacenar
-WEBCAM = 0
-LARGE_SIZE_THRESHOLD = 4.0
-MEDIUM_SIZE_THRESHOLD = 3.0
-CIRCLE_DIAMETER = 4.0
+WEBCAM = 1
+LARGE_SIZE_THRESHOLD = 5.0
+MEDIUM_SIZE_THRESHOLD = 4.0
+SMALL_SIZE_THRESHOLD = 2.0
+CIRCLE_DIAMETER = 5.0
+DETECTION_DELAY = 2
+PROCESSING_TIME = 2
+
 INTERVAL = 0
-DETECTION_TIME = 5  # Duración en segundos
 BAUDRATE = 9600
-
-# FUNCIONES DE CLASIFICACIÓN DE VISION
-def color_detector(frame,draw=True):
-
-    servo_code = None
-    red_lower = np.array([0, 120, 70])
-    red_upper = np.array([10, 255, 255])
-    yellow_lower = np.array([20, 100, 100])
-    yellow_upper = np.array([30, 255, 255])
-    green_lower = np.array([31, 16, 17])
-    green_upper = np.array([78, 255,255])
-
-    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-
-    mask_red = cv2.inRange(hsv, red_lower, red_upper)
-    mask_yellow = cv2.inRange(hsv, yellow_lower, yellow_upper)
-    mask_green = cv2.inRange(hsv, green_lower, green_upper)
-
-    kernel = np.ones((5,5),np.uint8)
-    mask_red = cv2.morphologyEx(mask_red, cv2.MORPH_OPEN, kernel)
-    mask_yellow = cv2.morphologyEx(mask_yellow, cv2.MORPH_OPEN, kernel)
-    mask_green = cv2.morphologyEx(mask_green, cv2.MORPH_OPEN, kernel)
-
-    red_count = cv2.countNonZero(mask_red)
-    yellow_count = cv2.countNonZero(mask_yellow)
-    green_count = cv2.countNonZero(mask_green)
-
-    if red_count > yellow_count and red_count > green_count:
-        color = "red"
-        color_code = (0, 0, 255)
-        servo_code = '0'
-    elif yellow_count > red_count and yellow_count > green_count:
-        color = "yellow"
-        color_code = (0, 255, 255)
-        servo_code = '1'
-    elif green_count > red_count and green_count > yellow_count:
-        color = "green"
-        color_code = (0, 255, 0)
-        servo_code = '2'
-    else:
-        return None, frame
-    mask = cv2.bitwise_or(mask_red, mask_yellow)
-    mask = cv2.bitwise_or(mask, mask_green)
-
-    kernel = np.ones((5,5),np.uint8)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    color_area_threshold = 250
-
-    max_area = 0
-    max_c = None
-    for c in contours:
-        area = cv2.contourArea(c)
-        if area > color_area_threshold and area > max_area:
-            max_area = area
-            max_c = c
-
-    if draw:
-        if max_c is not None:
-            x,y,w,h = cv2.boundingRect(max_c)
-            cv2.rectangle(frame,(x,y),(x+w,y+h),color_code,2)
-        cv2.putText(frame,color,(frame.shape[1]-100,50),cv2.FONT_HERSHEY_SIMPLEX,1,color_code,2,cv2.LINE_AA)
-
-    return servo_code, frame, mask
+CAMERA_ZISE = (600,600)
 
 # Función para detectar la forma, se usa tanto en forma como tamaño
 def detect_shape(c):
@@ -114,7 +53,74 @@ def detect_shape(c):
     # Devolver el nombre de la forma
     return servo_code, shape
 
-def shape_detector(frame, mask):
+# FUNCIONES DE CLASIFICACIÓN DE VISION
+def color_detector(frame,draw=True):
+
+    servo_code = None
+    red_lower = np.array([0, 120, 70])
+    red_upper = np.array([10, 255, 255])
+    yellow_lower = np.array([20, 100, 100])
+    yellow_upper = np.array([30, 255, 255])
+    green_lower = np.array([31, 16, 17])
+    green_upper = np.array([78, 255,255])
+
+    #frame = cv2.resize(frame,CAMERA_ZISE)
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+    mask_red = cv2.inRange(hsv, red_lower, red_upper)
+    mask_yellow = cv2.inRange(hsv, yellow_lower, yellow_upper)
+    mask_green = cv2.inRange(hsv, green_lower, green_upper)
+
+    kernel = np.ones((5,5),np.uint8)
+    mask_red = cv2.morphologyEx(mask_red, cv2.MORPH_OPEN, kernel)
+    mask_yellow = cv2.morphologyEx(mask_yellow, cv2.MORPH_OPEN, kernel)
+    mask_green = cv2.morphologyEx(mask_green, cv2.MORPH_OPEN, kernel)
+
+    red_count = cv2.countNonZero(mask_red)
+    yellow_count = cv2.countNonZero(mask_yellow)
+    green_count = cv2.countNonZero(mask_green)
+
+    if red_count > yellow_count and red_count > green_count:
+        color = "red"
+        color_code = (0, 0, 255)
+        servo_code = '0'
+    elif yellow_count > red_count and yellow_count > green_count:
+        color = "yellow"
+        color_code = (0, 255, 255)
+        servo_code = '1'
+    elif green_count > red_count and green_count > yellow_count:
+        color = "green"
+        color_code = (0, 255, 0)
+        servo_code = '2'
+    else:
+        return None, frame, None
+    mask = cv2.bitwise_or(mask_red, mask_yellow)
+    mask = cv2.bitwise_or(mask, mask_green)
+
+    kernel = np.ones((5,5),np.uint8)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    color_area_threshold = 250
+
+    max_area = 0
+    max_c = None
+    for c in contours:
+        area = cv2.contourArea(c)
+        if area > color_area_threshold and area > max_area:
+            max_area = area
+            max_c = c
+
+    if draw:
+        if max_c is not None:
+            x,y,w,h = cv2.boundingRect(max_c)
+            cv2.rectangle(frame,(x,y),(x+w,y+h),color_code,2)
+        cv2.putText(frame,color,(frame.shape[1]-100,50),cv2.FONT_HERSHEY_SIMPLEX,1,color_code,2,cv2.LINE_AA)
+
+    return servo_code, frame, mask
+
+def shape_detector(frame):
+    _, _, mask = color_detector(frame,draw=False)
         # Verificar que la máscara no esté vacía
     if mask is None or mask.size == 0:
         return None, None
@@ -181,103 +187,134 @@ def shape_detector(frame, mask):
 
     return code, frame
 
-
 def size_detector(frame, pixels_per_cm, large_size_threshold, medium_size_threshold):
-    
-    servo_code = None
-    
-    # Convertir la imagen a escala de grises y aplicar un desenfoque para suavizarla
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-
-    # Realizar una detección de bordes y encontrar los contornos en la imagen
-    edged = cv2.Canny(blurred, 50, 100)
-    contours, _ = cv2.findContours(edged.copy(), cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
+    servo_code = None
+    _, _, mask = color_detector(frame, draw=False)
     
-    # Definir el valor umbral para el área del contorno
+    if mask is None:
+        edged = cv2.Canny(blurred, 50, 100)
+    else:
+        edged = cv2.bitwise_and(blurred, blurred, mask=mask)
+    contours, _ = cv2.findContours(edged.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
     shape_area_threshold = 150
     
-    # Recorrer cada contorno
-    for c in contours:
-            # Verificar si el contorno es cerrado
+    if contours:
+        c = max(contours, key=cv2.contourArea)
+        
         if cv2.contourArea(c) > shape_area_threshold:
-            # Calcular el centro del contorno y dibujar un círculo en el centro
             M = cv2.moments(c)
             if M["m00"] != 0:
                 cX = int(M["m10"] / M["m00"])
                 cY = int(M["m01"] / M["m00"])
-                _, shape = detect_shape(c)
-                cv2.drawContours(frame, [c], -1, (0, 255, 0), 2)
-                (x, y, w, h) = cv2.boundingRect(c)
+            
+            peri = cv2.arcLength(c, True)
+            approx = cv2.approxPolyDP(c, 0.04 * peri, True)
+            
+            shape = None
+            
+            if len(approx) == 3:
+                shape = "Triangle"
+            elif len(approx) == 4:
+                shape = "Square"
+            elif len(approx) > 4:
+                area = cv2.contourArea(c)
+                (x, y), radius = cv2.minEnclosingCircle(c)
+                circle_area = np.pi * (radius ** 2)
+                circle_ratio = area / circle_area
                 
-                if shape =="Circle":
-                    diameter = w / pixels_per_cm
-                    if diameter >= large_size_threshold:
-                        size_text = "Large. D = {:.1f} cm".format(diameter)
-                        servo_code = '0'
-                    elif diameter >= medium_size_threshold:
-                        size_text = "Medium. D = {:.1f} cm".format(diameter)
-                        servo_code = '1'
-                    else:
-                        size_text = "Small. D = {:.1f} cm".format(diameter)
-                        servo_code = '2'
-                    cv2.putText(frame,size_text,(cX - 20 , cY - 20),cv2.FONT_HERSHEY_SIMPLEX, 0.5,(255, 255, 255), 2)
-                elif shape == "Triangle":
-                    side = w / pixels_per_cm
-                    if side >= large_size_threshold:
-                        size_text = "Large. l = {:.1f} cm".format(side)
-                        servo_code = '0'
-                    elif side >= medium_size_threshold:
-                        size_text = "Medium. l = {:.1f} cm".format(side)
-                        servo_code = '1'
-                    else:
-                        size_text = "Small. l = {:.1f} cm".format(side)
-                        servo_code = '2'
-                    cv2.putText(frame, size_text, (cX - 20 , cY - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+                if 0.7 <= circle_ratio <= 1.3:
+                    shape = "Circle"
+            
+            (x, y, w, h) = cv2.boundingRect(c)
+            
+            if shape == "Circle":
+                diameter = w / pixels_per_cm
+                if diameter >= large_size_threshold:
+                    size_text = "Large. D = {:.1f} cm".format(diameter)
+                    servo_code = '2'
+                elif diameter >= 0.9*medium_size_threshold:
+                    size_text = "Medium. D = {:.1f} cm".format(diameter)
+                    servo_code = '1'
                 else:
-                    width = w / pixels_per_cm
-                    height = h / pixels_per_cm
-                    if width >= large_size_threshold and height >= large_size_threshold:
-                        size_text = "Large: {:.1f} cm x {:.1f}cm".format(width, height)
-                        servo_code = '0'
-                    elif width >= medium_size_threshold and height >= medium_size_threshold:
-                        servo_code = '1'
-                        size_text = "Medium: {:.1f}cm x {:.1f}cm".format(width, height)
-                    else:
-                        size_text = "Small: {:.1f} cm x {:.1f} cm".format(width, height)
-                        servo_code = '2'
-                    cv2.putText(frame,size_text,(cX - 20 , cY - 20),cv2.FONT_HERSHEY_SIMPLEX, 0.5,(255, 255, 255), 2)
-
-    # Devolver la imagen final y el codigo del servo
+                    size_text = "Small. D = {:.1f} cm".format(diameter)
+                    servo_code = '0'
+    
+                cv2.putText(frame, size_text, (cX - 20, cY - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+    
+            elif shape == "Triangle":
+                side = w / pixels_per_cm
+                if side >= large_size_threshold:
+                    size_text = "Large. l = {:.1f} cm".format(side)
+                    servo_code = '2'
+                elif side >= medium_size_threshold:
+                    size_text = "Medium. l = {:.1f} cm".format(side)
+                    servo_code = '1'
+                else:
+                    size_text = "Small. l = {:.1f} cm".format(side)
+                    servo_code = '0'
+                cv2.putText(frame, size_text, (cX - 20, cY - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+            else:
+                width = w / pixels_per_cm
+                height = h / pixels_per_cm
+                if width >= large_size_threshold and height >= large_size_threshold:
+                    size_text = "Large: {:.1f} cm x {:.1f} cm".format(width, height)
+                    servo_code = '2'
+                elif width >= medium_size_threshold and height >= medium_size_threshold:
+                    servo_code = '1'
+                    size_text = "Medium: {:.1f} cm x {:.1f} cm".format(width, height)
+                else:
+                    size_text = "Small: {:.1f} cm x {:.1f} cm".format(width, height)
+                    servo_code = '0'
+                cv2.putText(frame, size_text, (cX - 20, cY - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+    
     return servo_code, frame
 
-def calibrate_camera(frame, circle_diameter=4.0):
-    
-    # Convertir la imagen a escala de grises y aplicar un desenfoque para suavizarla
+def calibrate_camera(frame, circle_diameter):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-
-    # Realizar una detección de bordes y encontrar los contornos en la imagen
-    edged = cv2.Canny(blurred, 50, 100)
-    contours, _ = cv2.findContours(edged.copy(), cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
-
-    # Definir el valor umbral para el área del contorno
+    _, _, mask = color_detector(frame, draw=False)
+    
+    if mask is None:
+        edged = cv2.Canny(blurred, 50, 100)
+    else:
+        edged = cv2.bitwise_and(blurred, blurred, mask=mask)
+    contours, _ = cv2.findContours(edged.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
     shape_area_threshold = 150
-
-    # Recorrer cada contorno
-    for c in contours:
-        # Verificar si el contorno es cerrado
+    
+    if contours:
+        c = max(contours, key=cv2.contourArea)
+        
         if cv2.contourArea(c) > shape_area_threshold:
-            # Calcular el centro del contorno y dibujar un círculo en el centro
-            M = cv2.moments(c)
-            if M["m00"] != 0:
-                cX = int(M["m10"] / M["m00"])
-                cY = int(M["m01"] / M["m00"])
-                _, shape = detect_shape(c)
-                if shape == "Circle":
-                    (x, y, w, h) = cv2.boundingRect(c)
+            peri = cv2.arcLength(c, True)
+            approx = cv2.approxPolyDP(c, 0.04 * peri, True)
+            
+            shape = None
+            
+            if len(approx) == 3:
+                shape = "Triangle"
+            elif len(approx) == 4:
+                shape = "Square"
+            elif len(approx) > 4:
+                area = cv2.contourArea(c)
+                (_, _), radius = cv2.minEnclosingCircle(c)
+                circle_area = np.pi * (radius ** 2)
+                circle_ratio = area / circle_area
+                
+                if 0.7 <= circle_ratio <= 1.3:
+                    shape = "Circle"
+            
+            if shape == "Circle":
+                (_, _, w, _) = cv2.boundingRect(c)
+                
+                if w != 0:
                     pixels_per_cm = w / circle_diameter
                     return pixels_per_cm
+    
+    return None
 
 def classifier_selector(frame,option="color",circle_diameter=4.0, large_size_threshold=4.0,medium_size_threshold=3.0):
     if option == "color":
